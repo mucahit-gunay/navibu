@@ -1,4 +1,4 @@
-from extensions import db
+from ..extensions import db
 
 user_routes = db.Table('user_routes',
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),

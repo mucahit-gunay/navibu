@@ -1,7 +1,7 @@
 import datetime
 import random
 import string
-from extensions import db, mail
+from ..extensions import db, mail
 from flask_mail import Message
 
 class User(db.Model):

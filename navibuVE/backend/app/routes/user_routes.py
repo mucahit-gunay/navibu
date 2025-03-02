@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
-from models.user import User
-from models.route import Route, user_routes
-from extensions import db
+from ..models.user import User
+from ..models.route import Route, user_routes
+from ..extensions import db
 
 user_routes_bp = Blueprint('user_routes', __name__)
 
@@ -69,4 +69,14 @@ def get_all_routes():
     routes = Route.query.all()
     return jsonify({
         'routes': [route.to_dict() for route in routes]
+    })
+
+@user_routes_bp.route('/user/check_route_selection/<int:user_id>', methods=['GET'])
+def check_route_selection(user_id):
+    """Check if user has selected any routes"""
+    user = User.query.get_or_404(user_id)
+    has_routes = user.routes.count() > 0  # Check if user has any routes
+    
+    return jsonify({
+        'has_selected_routes': has_routes
     })
