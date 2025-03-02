@@ -5,7 +5,9 @@ import 'dart:convert';
 import 'package:navibuapp/widgets/navibu_logo.dart';
 import 'package:navibuapp/screens/signup_screen.dart';
 import 'package:navibuapp/screens/home_screen.dart';
-import 'package:navibuapp/screens/route_selection_screen.dart';
+import 'package:navibuapp/screens/forgot_password_screen.dart';
+import 'package:navibuapp/utils/device_utility.dart';
+import 'package:navibuapp/utils/animation_loader.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -19,14 +21,65 @@ class _LoginScreenState extends State<LoginScreen> {
   String message = "";
 
   Future<void> loginUser() async {
-    setState(() {
-      isLoading = true;
-      message = "";
-    });
+    TDeviceUtils.hideKeyboard(context);
+
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      // Show error animation with alert
+      await showDialog(
+        context: context,
+        builder: (_) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TAnimationLoader.error(width: 100, height: 100),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'E-posta ve şifre alanları boş bırakılamaz',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Show loading animation
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TAnimationLoader.loading(width: 100, height: 100),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Giriş yapılıyor...',
+                style: TextStyle(color: Colors.black87),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
 
     try {
-      // Replace with your computer's actual IP address
-      final url = Uri.parse("http://127.0.0.1:5000/auth/login");
+      final url = Uri.parse("http://localhost:5000/auth/login");
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
@@ -36,55 +89,118 @@ class _LoginScreenState extends State<LoginScreen> {
         }),
       );
 
-      setState(() {
-        isLoading = false;
-      });
+      // Remove loading dialog
+      Navigator.pop(context);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final userId = data["user_id"];
-        
-        // Check if user has selected routes
-        final checkUrl = Uri.parse("http://127.0.0.1:5000/user/check_route_selection/$userId");
-        final checkResponse = await http.get(checkUrl);
-        
-        if (checkResponse.statusCode == 200) {
-          final checkData = jsonDecode(checkResponse.body);
-          
-          if (checkData['has_selected_routes']) {
-            // User has already selected routes, go to home screen
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => HomeScreen(userId: userId),
-              ),
-            );
-          } else {
-            // User needs to select routes first
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => RouteSelectionScreen(userId: userId),
-              ),
-            );
-          }
-        }
+
+        // Show success animation
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TAnimationLoader.success(width: 150, height: 150),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Giriş Başarılı!',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        // Navigate after success animation
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomeScreen(userId: userId),
+          ),
+        );
       } else {
         final data = jsonDecode(response.body);
-        setState(() {
-          message = data["error"] ?? "Giriş başarısız!";
-        });
+        // Show error animation
+        await showDialog(
+          context: context,
+          builder: (_) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TAnimationLoader.error(width: 100, height: 100),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    data["error"] ?? "Giriş başarısız!",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       }
     } catch (e) {
-      setState(() {
-        message = "Bağlantı hatası: $e";
-        isLoading = false;
-      });
+      // Remove loading dialog if still showing
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      // Show error animation
+      await showDialog(
+        context: context,
+        builder: (_) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TAnimationLoader.error(width: 100, height: 100),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Get screen dimensions
+    final screenWidth = TDeviceUtils.getScreenWidth(context);
+    final screenHeight = TDeviceUtils.getScreenHeight(context);
+    
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
@@ -126,6 +242,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
                   obscureText: true,
+                ),
+                // Add Forgot Password link here
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ForgotPasswordScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Şifremi Unuttum?',
+                      style: TextStyle(
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 // Login button

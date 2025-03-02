@@ -2,6 +2,12 @@
   "configVersion": 2,
   "packages": [
     {
+      "name": "archive",
+      "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/archive-4.0.4",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "async",
       "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/async-2.12.0",
       "packageUri": "lib/",
@@ -28,6 +34,12 @@
     {
       "name": "collection",
       "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/collection-1.19.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "crypto",
+      "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/crypto-3.0.6",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -92,6 +104,12 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "intl",
+      "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/intl-0.19.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "leak_tracker",
       "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/leak_tracker-10.0.8",
       "packageUri": "lib/",
@@ -112,6 +130,12 @@
     {
       "name": "lints",
       "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/lints-5.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "lottie",
+      "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/lottie-3.3.1",
       "packageUri": "lib/",
       "languageVersion": "3.6"
     },
@@ -166,6 +190,12 @@
     {
       "name": "plugin_platform_interface",
       "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/plugin_platform_interface-2.1.8",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "posix",
+      "rootUri": "file:///Users/mucahitgunay/.pub-cache/hosted/pub.dev/posix-6.0.1",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
@@ -290,7 +320,7 @@
       "languageVersion": "3.7"
     }
   ],
-  "generated": "2025-03-01T13:27:56.081008Z",
+  "generated": "2025-03-02T22:49:10.487552Z",
   "generator": "pub",
   "generatorVersion": "3.7.0",
   "flutterRoot": "file:///opt/homebrew/Caskroom/flutter/3.29.0/flutter",

@@ -27,7 +27,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
     try {
       // Replace with your computer's actual IP address
-      final url = Uri.parse("http://192.168.1.X:5000/auth/verify");
+      final url = Uri.parse("http://127.0.0.1:5000/auth/verify");
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
