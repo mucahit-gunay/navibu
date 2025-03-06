@@ -6,7 +6,6 @@ import '../screens/signup_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/route_selection_screen.dart';
 import '../screens/forgot_password_screen.dart';
-import '../utils/size_config.dart';
 import '../services/dialog_service.dart';
 
 class LoginScreen extends StatefulWidget {
