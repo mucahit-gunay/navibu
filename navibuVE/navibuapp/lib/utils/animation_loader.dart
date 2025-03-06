@@ -11,6 +11,7 @@ class TAnimationLoader {
         'assets/animations/loading.json',
         width: width,
         height: height,
+        fit: BoxFit.contain,
       ),
     );
   }
@@ -24,6 +25,7 @@ class TAnimationLoader {
         'assets/animations/error.json',
         width: width,
         height: height,
+        fit: BoxFit.contain,
       ),
     );
   }
@@ -37,6 +39,7 @@ class TAnimationLoader {
         'assets/animations/success.json',
         width: width,
         height: height,
+        fit: BoxFit.contain,
       ),
     );
   }

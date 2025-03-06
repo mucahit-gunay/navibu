@@ -1,65 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-class THelperFunctions {
+class THelpers {
+  static String formatDate(DateTime date) {
+    return DateFormat.yMd().format(date);
+  }
+
+  static String formatCurrency(double amount) {
+    return NumberFormat.currency(locale: 'tr_TR', symbol: '₺').format(amount);
+  }
+
+  static bool isEmailValid(String email) {
+    final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegExp.hasMatch(email);
+  }
+
+  static bool isPasswordValid(String password) {
+    return password.length >= 6;
+  }
+
   static void showSnackBar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-      ),
+      SnackBar(content: Text(message)),
     );
   }
 
-  static Future<void> showAlert(
-    BuildContext context,
-    String title,
-    String message,
-  ) async {
-    return showDialog(
+  static Future<bool?> showConfirmationDialog(
+    BuildContext context, {
+    required String title,
+    required String content,
+    String confirmLabel = 'Evet',
+    String cancelLabel = 'Hayır',
+  }) async {
+    return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
-        content: Text(message),
+        content: Text(content),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tamam'),
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(cancelLabel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(confirmLabel),
           ),
         ],
       ),
     );
-  }
-
-  static Future<void> navigateToScreen(BuildContext context, Widget screen) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => screen),
-    );
-  }
-
-  static String getFormattedDate(DateTime date) {
-    return DateFormat('dd/MM/yyyy').format(date);
-  }
-
-  static String getFormattedTime(DateTime time) {
-    return DateFormat('HH:mm').format(time);
-  }
-
-  static bool isDarkMode(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark;
-  }
-
-  static Size screenSize(BuildContext context) {
-    return MediaQuery.sizeOf(context);
-  }
-
-  static double screenHeight(BuildContext context) {
-    return MediaQuery.sizeOf(context).height;
-  }
-
-  static double screenWidth(BuildContext context) {
-    return MediaQuery.sizeOf(context).width;
   }
 } 

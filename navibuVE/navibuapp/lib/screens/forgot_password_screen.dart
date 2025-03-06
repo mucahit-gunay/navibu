@@ -1,292 +1,284 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:async';
-import 'package:navibuapp/utils/device_utility.dart';
-import 'package:navibuapp/utils/helpers.dart';
-import 'package:navibuapp/utils/animation_loader.dart';
+import '../widgets/navibu_logo.dart';
+import '../services/dialog_service.dart';
+import 'login_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
-
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  _ForgotPasswordScreenState createState() => _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController codeController = TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
-  bool isLoading = false;
-  bool codeSent = false;
-  String message = '';
+  final TextEditingController confirmPasswordController = TextEditingController();
 
-  Future<void> sendResetCode() async {
-    TDeviceUtils.hideKeyboard(context);
-    
-    if (emailController.text.isEmpty) {
-      await showDialog(
-        context: context,
-        builder: (_) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TAnimationLoader.error(width: 100, height: 100),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+  bool codeSent = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(height: 20),
+                // Logo
+                Center(child: NavibuLogo()),
+                SizedBox(height: 30),
+                // Title
+                Text(
+                  "Şifre Sıfırlama",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
                 ),
-                child: const Text(
-                  'E-posta adresi boş bırakılamaz',
+                SizedBox(height: 16),
+                // Description text
+                Text(
+                  codeSent 
+                      ? "E-posta adresinize gönderilen kodu girin ve yeni şifrenizi belirleyin."
+                      : "Şifrenizi sıfırlamak için e-posta adresinizi girin.",
                   textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
                 ),
-              ),
-            ],
+                SizedBox(height: 30),
+                
+                // Form
+                if (!codeSent) ...[
+                  // Email field
+                  TextField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      labelText: "E-posta",
+                      prefixIcon: Icon(Icons.email_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  // Send code button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: sendResetCode,
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Kod Gönder',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  // Code field
+                  TextField(
+                    controller: codeController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    decoration: InputDecoration(
+                      labelText: "Kod",
+                      prefixIcon: Icon(Icons.lock_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      counterText: "",
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  // New password field
+                  TextField(
+                    controller: newPasswordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: "Yeni Şifre",
+                      prefixIcon: Icon(Icons.lock_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  // Confirm password field
+                  TextField(
+                    controller: confirmPasswordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: "Şifre Tekrar",
+                      prefixIcon: Icon(Icons.lock_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  // Reset password button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: resetPassword,
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Şifre Sıfırla',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  // Resend code button
+                  TextButton(
+                    onPressed: sendResetCode,
+                    child: Text('Kodu Tekrar Gönder'),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> sendResetCode() async {
+    if (emailController.text.isEmpty) {
+      DialogService.showError(
+        context,
+        message: 'Lütfen e-posta adresinizi girin.',
       );
       return;
     }
 
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(emailController.text)) {
-      setState(() {
-        message = "Geçerli bir e-posta adresi giriniz";
-      });
-      return;
-    }
-    
-    setState(() {
-      isLoading = true;
-      message = '';
-    });
+    await DialogService.showLoading(context, message: 'Kod gönderiliyor...');
 
     try {
       final response = await http.post(
         Uri.parse('http://localhost:5000/auth/forgot-password'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': emailController.text}),
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw TimeoutException('Bağlantı zaman aşımına uğradı');
-        },
+        body: jsonEncode({
+          'email': emailController.text,
+        }),
       );
 
-      if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
 
       if (response.statusCode == 200) {
         setState(() {
           codeSent = true;
-          message = 'Doğrulama kodu e-posta adresinize gönderildi.';
         });
         
-        // Show success animation
-        await showDialog(
-          context: context,
-          builder: (_) => Dialog(
-            backgroundColor: Colors.transparent,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TAnimationLoader.success(width: 100, height: 100),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Doğrulama kodu e-posta adresinize gönderildi',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.green),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        DialogService.showSuccess(
+          context,
+          message: 'Şifre sıfırlama kodu e-posta adresinize gönderildi.',
         );
       } else {
         final data = jsonDecode(response.body);
-        setState(() {
-          message = data['error'] ?? 'Bir hata oluştu.';
-        });
+        DialogService.showError(
+          context,
+          message: data['error'] ?? 'Şifre sıfırlama kodu gönderilemedi.',
+        );
       }
-    } on TimeoutException catch (_) {
-      if (!mounted) return;
-      setState(() {
-        isLoading = false;
-        message = 'Sunucu yanıt vermedi. Lütfen tekrar deneyin.';
-      });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        isLoading = false;
-        message = 'Bağlantı hatası: Lütfen internet bağlantınızı kontrol edin';
-      });
+      if (mounted) {
+        Navigator.pop(context); // Remove loading dialog
+        DialogService.showError(
+          context,
+          message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
+        );
+      }
     }
   }
 
   Future<void> resetPassword() async {
-    if (codeController.text.isEmpty || newPasswordController.text.isEmpty) {
-      THelperFunctions.showAlert(
+    if (codeController.text.isEmpty || 
+        newPasswordController.text.isEmpty || 
+        confirmPasswordController.text.isEmpty) {
+      DialogService.showError(
         context,
-        'Uyarı',
-        'Lütfen tüm alanları doldurunuz.',
+        message: 'Lütfen tüm alanları doldurun.',
       );
       return;
     }
 
-    setState(() => isLoading = true);
+    if (newPasswordController.text != confirmPasswordController.text) {
+      DialogService.showError(
+        context,
+        message: 'Şifreler eşleşmiyor.',
+      );
+      return;
+    }
+
+    await DialogService.showLoading(context, message: 'Şifre sıfırlanıyor...');
 
     try {
       final response = await http.post(
         Uri.parse('http://localhost:5000/auth/reset-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': emailController.text.trim(),
-          'code': codeController.text.trim(),
+          'email': emailController.text,
+          'code': codeController.text,
           'new_password': newPasswordController.text,
         }),
       );
 
-      if (response.statusCode == 200) {
-        if (!mounted) return;
-        
-        await showDialog(
-          context: context,
-          builder: (_) => Dialog(
-            backgroundColor: Colors.transparent,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TAnimationLoader.success(width: 100, height: 100),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Şifreniz başarıyla güncellendi!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.green),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
 
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/login');
+      if (response.statusCode == 200) {
+        await DialogService.showSuccess(
+          context,
+          message: 'Şifreniz başarıyla sıfırlandı!',
+          onDismiss: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => LoginScreen()),
+              (route) => false,
+            );
+          },
+        );
       } else {
         final data = jsonDecode(response.body);
-        throw Exception(data['error'] ?? 'Şifre sıfırlama başarısız');
+        DialogService.showError(
+          context,
+          message: data['error'] ?? 'Şifre sıfırlama başarısız.',
+        );
       }
     } catch (e) {
-      if (!mounted) return;
-      THelperFunctions.showAlert(
-        context,
-        'Hata',
-        e.toString(),
-      );
-    } finally {
       if (mounted) {
-        setState(() => isLoading = false);
+        Navigator.pop(context); // Remove loading dialog
+        DialogService.showError(
+          context,
+          message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
+        );
       }
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Şifremi Unuttum'),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 20),
-            if (!codeSent) ...[
-              const Text(
-                'Şifrenizi sıfırlamak için e-posta adresinizi girin.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'E-posta',
-                  prefixIcon: Icon(Icons.email),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: isLoading ? null : sendResetCode,
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Doğrulama Kodu Gönder'),
-              ),
-            ] else ...[
-              TextField(
-                controller: codeController,
-                decoration: const InputDecoration(
-                  labelText: 'Doğrulama Kodu',
-                  prefixIcon: Icon(Icons.lock),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: newPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Yeni Şifre',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: isLoading ? null : resetPassword,
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Şifreyi Sıfırla'),
-              ),
-            ],
-            if (message.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                message,
-                style: TextStyle(
-                  color: message.contains('başarıyla') ? Colors.green : Colors.red,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -294,6 +286,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     emailController.dispose();
     codeController.dispose();
     newPasswordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 } 

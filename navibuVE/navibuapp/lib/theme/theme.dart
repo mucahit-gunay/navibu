@@ -2,65 +2,136 @@
 import 'package:flutter/material.dart';
 
 class NavibuTheme {
-  // Primary colors
-  static const Color primaryColor = Color(0xFF2E7D32); // Green color, adjust to match your design
-  static const Color secondaryColor = Color(0xFF1B5E20); // Darker green for emphasis
-  static const Color accentColor = Color(0xFF81C784); // Light green for accents
+  // Colors
+  static const Color primaryColor = Color(0xFF3F51B5); // Indigo
+  static const Color secondaryColor = Color(0xFF7986CB); // Lighter Indigo
+  static const Color accentColor = Color(0xFFE91E63); // Pink
+  static const Color textColor = Color(0xFF333333);
+  static const Color backgroundColor = Color(0xFFF5F5F5);
+  static const Color cardColor = Colors.white;
+  static const Color errorColor = Color(0xFFD32F2F);
   
-  // Text colors
-  static const Color textPrimary = Color(0xFF212121);
-  static const Color textSecondary = Color(0xFF757575);
-  static const Color textOnPrimary = Color(0xFFFFFFFF);
-  
-  // Background colors
-  static const Color background = Color(0xFFF5F5F5);
-  static const Color cardBackground = Color(0xFFFFFFFF);
-  
-  // Define theme data
-  static ThemeData get theme {
-    return ThemeData(
-      primaryColor: primaryColor,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryColor,
-        primary: primaryColor,
-        secondary: secondaryColor,
-        background: background,
+  // Material 3 Color Scheme
+  static final ColorScheme colorScheme = ColorScheme(
+    brightness: Brightness.light,
+    primary: primaryColor,
+    onPrimary: Colors.white,
+    secondary: secondaryColor,
+    onSecondary: Colors.white,
+    error: errorColor,
+    onError: Colors.white,
+    background: backgroundColor,
+    onBackground: textColor,
+    surface: cardColor,
+    onSurface: textColor,
+  );
+
+  // Text Themes
+  static final TextTheme textTheme = TextTheme(
+    displayLarge: TextStyle(
+      fontSize: 28,
+      fontWeight: FontWeight.bold,
+      color: textColor,
+    ),
+    displayMedium: TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.bold,
+      color: textColor,
+    ),
+    displaySmall: TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+      color: textColor,
+    ),
+    bodyLarge: TextStyle(
+      fontSize: 16,
+      color: textColor,
+    ),
+    bodyMedium: TextStyle(
+      fontSize: 14,
+      color: textColor,
+    ),
+    titleLarge: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      color: textColor,
+    ),
+  );
+
+  // Button Themes
+  static final ElevatedButtonThemeData elevatedButtonTheme = ElevatedButtonThemeData(
+    style: ButtonStyle(
+      backgroundColor: MaterialStateProperty.all<Color>(primaryColor),
+      foregroundColor: MaterialStateProperty.all<Color>(Colors.white),
+      padding: MaterialStateProperty.all<EdgeInsets>(
+        EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: primaryColor,
-        foregroundColor: textOnPrimary,
-        elevation: 0,
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: textOnPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 15),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: primaryColor,
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(
+      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+        RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: primaryColor, width: 2),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: primaryColor.withOpacity(0.5)),
-        ),
-        filled: true,
-        fillColor: Colors.white,
       ),
-    );
-  }
+    ),
+  );
+
+  static final TextButtonThemeData textButtonTheme = TextButtonThemeData(
+    style: ButtonStyle(
+      foregroundColor: MaterialStateProperty.all<Color>(primaryColor),
+      textStyle: MaterialStateProperty.all<TextStyle>(
+        TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+  );
+
+  static final InputDecorationTheme inputDecorationTheme = InputDecorationTheme(
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: EdgeInsets.all(16),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: primaryColor, width: 2),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: errorColor, width: 2),
+    ),
+    labelStyle: TextStyle(color: Colors.grey.shade700),
+  );
+
+  // App Theme
+  static final ThemeData theme = ThemeData(
+    useMaterial3: true,
+    colorScheme: colorScheme,
+    scaffoldBackgroundColor: backgroundColor,
+    textTheme: textTheme,
+    elevatedButtonTheme: elevatedButtonTheme,
+    textButtonTheme: textButtonTheme,
+    inputDecorationTheme: inputDecorationTheme,
+    appBarTheme: AppBarTheme(
+      backgroundColor: primaryColor,
+      foregroundColor: Colors.white,
+      elevation: 0,
+    ),
+    cardTheme: CardTheme(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: primaryColor,
+      foregroundColor: Colors.white,
+    ),
+  );
 }

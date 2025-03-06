@@ -8,16 +8,24 @@ class TDeviceUtils {
 
   static Future<void> setStatusBarColor(Color color) async {
     SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(statusBarColor: color),
+      SystemUiOverlayStyle(
+        statusBarColor: color,
+      ),
+    );
+  }
+
+  static void setFullScreen(bool enable) {
+    SystemChrome.setEnabledSystemUIMode(
+      enable ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
     );
   }
 
   static double getScreenHeight(BuildContext context) {
-    return MediaQuery.sizeOf(context).height;
+    return MediaQuery.of(context).size.height;
   }
 
   static double getScreenWidth(BuildContext context) {
-    return MediaQuery.sizeOf(context).width;
+    return MediaQuery.of(context).size.width;
   }
 
   static double getPixelRatio(BuildContext context) {
@@ -30,12 +38,6 @@ class TDeviceUtils {
 
   static Size getScreenSize(BuildContext context) {
     return MediaQuery.sizeOf(context);
-  }
-
-  static void setFullScreen(bool enable) {
-    SystemChrome.setEnabledSystemUIMode(
-      enable ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
-    );
   }
 
   static double getStatusBarHeight(BuildContext context) {

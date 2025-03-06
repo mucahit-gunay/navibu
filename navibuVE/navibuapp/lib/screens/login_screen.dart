@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:navibuapp/widgets/navibu_logo.dart';
-import 'package:navibuapp/screens/signup_screen.dart';
-import 'package:navibuapp/screens/home_screen.dart';
-import 'package:navibuapp/screens/route_selection_screen.dart';
-import 'package:navibuapp/screens/forgot_password_screen.dart';
-import 'package:navibuapp/utils/device_utility.dart';
-import 'package:navibuapp/utils/animation_loader.dart';
-import 'package:navibuapp/utils/helpers.dart';
+import '../widgets/navibu_logo.dart';
+import '../screens/signup_screen.dart';
+import '../screens/home_screen.dart';
+import '../screens/route_selection_screen.dart';
+import '../screens/forgot_password_screen.dart';
+import '../utils/size_config.dart';
+import '../services/dialog_service.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -18,220 +17,22 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  bool isLoading = false;
-  String message = "";
-
-  Future<void> loginUser() async {
-    TDeviceUtils.hideKeyboard(context);
-
-    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-      // Show error animation with alert
-      await showDialog(
-        context: context,
-        builder: (_) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TAnimationLoader.error(width: 100, height: 100),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'E-posta ve şifre alanları boş bırakılamaz',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-      return;
-    }
-
-    // Show loading animation
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TAnimationLoader.loading(width: 100, height: 100),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Giriş yapılıyor...',
-                style: TextStyle(color: Colors.black87),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final url = Uri.parse("http://localhost:5000/auth/login");
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "email": emailController.text,
-          "password": passwordController.text,
-        }),
-      );
-
-      // Remove loading dialog
-      Navigator.pop(context);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final userId = data["user_id"];
-
-        // Check if user has selected routes
-        final routesResponse = await http.get(
-          Uri.parse('http://localhost:5000/auth/check-routes?user_id=$userId'),
-        );
-
-        if (!mounted) return;
-
-        if (routesResponse.statusCode == 200) {
-          final routesData = jsonDecode(routesResponse.body);
-          final hasRoutes = routesData['has_routes'];
-
-          // Show success animation first
-          await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => Dialog(
-              backgroundColor: Colors.transparent,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TAnimationLoader.success(width: 100, height: 100),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Giriş Başarılı!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.green),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-
-          if (!mounted) return;
-
-          // Navigate based on route selection status
-          if (hasRoutes) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => HomeScreen(userId: userId),
-              ),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => RouteSelectionScreen(userId: userId),
-              ),
-            );
-          }
-        }
-      } else {
-        final data = jsonDecode(response.body);
-        // Show error animation
-        await showDialog(
-          context: context,
-          builder: (_) => Dialog(
-            backgroundColor: Colors.transparent,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TAnimationLoader.error(width: 100, height: 100),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    data["error"] ?? "Giriş başarısız!",
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      // Remove loading dialog if still showing
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-
-      // Show error animation
-      await showDialog(
-        context: context,
-        builder: (_) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TAnimationLoader.error(width: 100, height: 100),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 40),
+                SizedBox(height: 40),
                 // Logo
-                const Center(child: NavibuLogo()),
-                const SizedBox(height: 40),
+                Center(child: NavibuLogo()),
+                SizedBox(height: 40),
                 // Title
                 Text(
                   "Navibu'ya Hoş Geldiniz",
@@ -241,90 +42,78 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: Theme.of(context).primaryColor,
                   ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 30),
                 // Email field
                 TextField(
                   controller: emailController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: "E-posta",
                     prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 // Password field
                 TextField(
                   controller: passwordController,
-                  decoration: const InputDecoration(
+                  obscureText: true,
+                  decoration: InputDecoration(
                     labelText: "Şifre",
                     prefixIcon: Icon(Icons.lock_outline),
-                  ),
-                  obscureText: true,
-                ),
-                // Add Forgot Password link here
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ForgotPasswordScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Şifremi Unuttum?',
-                      style: TextStyle(
-                        fontSize: 14,
-                      ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
                 // Login button
                 SizedBox(
                   width: double.infinity,
+                  height: 50,
                   child: ElevatedButton(
-                    onPressed: isLoading ? null : loginUser,
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text("Giriş Yap"),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Error message
-                if (message.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
+                    onPressed: loginUser,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                     child: Text(
-                      message,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
+                      'Giriş Yap',
+                      style: TextStyle(fontSize: 16),
                     ),
                   ),
-                // Register link
+                ),
+                SizedBox(height: 16),
+                // Forgot password button
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ForgotPasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: Text('Şifremi Unuttum'),
+                ),
+                SizedBox(height: 16),
+                // Sign up link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Hesabınız yok mu?"),
+                    Text('Hesabınız yok mu?'),
                     TextButton(
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => SignUpScreen(),
+                            builder: (context) => SignupScreen(),
                           ),
                         );
                       },
-                      child: const Text("Kayıt Ol"),
+                      child: Text('Kayıt Ol'),
                     ),
                   ],
                 ),
@@ -334,5 +123,95 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> loginUser() async {
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      DialogService.showError(
+        context,
+        message: 'E-posta ve şifre alanları boş bırakılamaz',
+      );
+      return;
+    }
+
+    await DialogService.showLoading(context, message: 'Giriş yapılıyor...');
+
+    try {
+      final response = await http.post(
+        Uri.parse("http://localhost:5000/auth/login"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "email": emailController.text,
+          "password": passwordController.text,
+        }),
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final userId = data["user_id"];
+
+        // Check user routes
+        await checkUserRoutes(userId);
+      } else {
+        final data = jsonDecode(response.body);
+        DialogService.showError(
+          context,
+          message: data["error"] ?? "Giriş başarısız!",
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Remove loading dialog
+        DialogService.showError(
+          context,
+          message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
+        );
+      }
+    }
+  }
+
+  Future<void> checkUserRoutes(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5000/auth/check-routes?user_id=$userId'),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final hasRoutes = data['has_routes'];
+
+        await DialogService.showSuccess(
+          context,
+          message: 'Giriş Başarılı!',
+          onDismiss: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => hasRoutes 
+                    ? HomeScreen(userId: userId)
+                    : RouteSelectionScreen(userId: userId),
+              ),
+            );
+          },
+        );
+      }
+    } catch (e) {
+      DialogService.showError(
+        context,
+        message: 'Rota kontrolü sırasında bir hata oluştu.',
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 }

@@ -1,219 +1,192 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../services/dialog_service.dart';
+import 'login_screen.dart';
+import 'route_selection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int userId;
 
-  const HomeScreen({
-    super.key,
-    required this.userId,
-  });
+  HomeScreen({required this.userId});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-  bool hasSelectedRoutes = false;
-  List<dynamic> userRoutes = [];
+  List<Map<String, dynamic>> userRoutes = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _checkRouteSelection();
+    fetchUserRoutes();
   }
 
-  Future<void> _checkRouteSelection() async {
+  Future<void> fetchUserRoutes() async {
+    setState(() {
+      isLoading = true;
+    });
+
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:5000/api/user/${widget.userId}/routes'),
+        Uri.parse('http://localhost:5000/api/user/${widget.userId}/routes'),
       );
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          hasSelectedRoutes = data['has_selected_routes'];
-          userRoutes = data['routes'];
+          userRoutes = List<Map<String, dynamic>>.from(data['routes']);
+          isLoading = false;
         });
-        
-        if (!hasSelectedRoutes) {
-          _showRouteSelectionPrompt();
-        }
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+        DialogService.showError(
+          context,
+          message: 'Hatlar yüklenirken bir hata oluştu.',
+        );
       }
     } catch (e) {
-      print('Error checking route selection: $e');
+      setState(() {
+        isLoading = false;
+      });
+      DialogService.showError(
+        context,
+        message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
+      );
     }
   }
 
-  void _showRouteSelectionPrompt() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Rotalarınızı Seçin'),
-        content: const Text('Sizin için en uygun rotaları seçerek başlayalım.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _navigateToRouteSelection();
-            },
-            child: const Text('Şimdi Seç'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Sonra'),
-          ),
-        ],
-      ),
+  void logout() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+      (route) => false,
     );
-  }
-
-  void _navigateToRouteSelection() {
-    // You'll implement this navigation later
-    print('Navigate to route selection');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Navibu'),
-        centerTitle: true,
+        title: Text('Navibu'),
+        backgroundColor: Theme.of(context).primaryColor,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.edit),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RouteSelectionScreen(userId: widget.userId),
+                ),
+              ).then((_) => fetchUserRoutes()); // Refresh after coming back
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: logout,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Hoş Geldiniz (ID: ${widget.userId})',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.search, color: Color(0xFF1976D2)),
-                title: const Text('Rota Ara'),
-                subtitle: const Text('İstediğiniz rotayı bulun'),
-                onTap: () {
-                  // Navigation will be handled later
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.favorite, color: Color(0xFF1976D2)),
-                title: const Text('Favori Rotalar'),
-                subtitle: Text(hasSelectedRoutes 
-                  ? '${userRoutes.length} seçili rota' 
-                  : 'Henüz rota seçilmedi'),
-                onTap: _navigateToRouteSelection,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.history, color: Color(0xFF1976D2)),
-                title: const Text('Son Görüntülenenler'),
-                subtitle: const Text('En son baktığınız rotalar'),
-                onTap: () {
-                  // Navigation will be handled later
-                },
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Popüler Rotalar',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 200,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: 5,
-                itemBuilder: (context, index) {
-                  return Card(
-                    margin: const EdgeInsets.only(right: 12),
-                    child: SizedBox(
-                      width: 160,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            height: 100,
-                            color: const Color(0xFF1976D2),
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.route,
-                              color: Colors.white,
-                              size: 40,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'Hatlarım',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: userRoutes.isEmpty
+                        ? Center(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  'Rota ${index + 1}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  'Henüz hat seçmediniz',
+                                  style: TextStyle(fontSize: 16),
                                 ),
-                                const Text(
-                                  '10 durak',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                  ),
+                                SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => RouteSelectionScreen(
+                                          userId: widget.userId,
+                                        ),
+                                      ),
+                                    ).then((_) => fetchUserRoutes());
+                                  },
+                                  child: Text('Hat Seç'),
                                 ),
                               ],
                             ),
+                          )
+                        : ListView.builder(
+                            itemCount: userRoutes.length,
+                            padding: EdgeInsets.all(16),
+                            itemBuilder: (context, index) {
+                              final route = userRoutes[index];
+                              return Card(
+                                margin: EdgeInsets.only(bottom: 12),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            route['route_short_name'],
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(width: 16),
+                                      Expanded(
+                                        child: Text(
+                                          route['route_long_name'],
+                                          style: TextStyle(fontSize: 16),
+                                        ),
+                                      ),
+                                      Icon(Icons.directions_bus),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-          if (index == 2) { // Profile tab
-            _navigateToRouteSelection();
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Ana Sayfa',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.route),
-            label: 'Rotalar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: fetchUserRoutes,
+        child: Icon(Icons.refresh),
       ),
     );
   }

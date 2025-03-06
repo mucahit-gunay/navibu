@@ -1,26 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:navibuapp/utils/device_utility.dart';
-import 'package:navibuapp/utils/helpers.dart';
-import 'package:navibuapp/utils/animation_loader.dart';
+import '../services/dialog_service.dart';
+import 'home_screen.dart';
 
 class RouteSelectionScreen extends StatefulWidget {
   final int userId;
 
-  const RouteSelectionScreen({Key? key, required this.userId}) : super(key: key);
+  RouteSelectionScreen({required this.userId});
 
   @override
-  State<RouteSelectionScreen> createState() => _RouteSelectionScreenState();
+  _RouteSelectionScreenState createState() => _RouteSelectionScreenState();
 }
 
 class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
-  List<Map<String, dynamic>> allRoutes = [];
-  List<Map<String, dynamic>> filteredRoutes = [];
-  List<Map<String, dynamic>> selectedRoutes = [];
+  List<Map<String, dynamic>> routes = [];
+  List<int> selectedRouteIds = [];
   bool isLoading = true;
-  String searchQuery = '';
-  final TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
@@ -29,6 +25,10 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
   }
 
   Future<void> fetchRoutes() async {
+    setState(() {
+      isLoading = true;
+    });
+
     try {
       final response = await http.get(
         Uri.parse('http://localhost:5000/api/routes'),
@@ -37,192 +37,203 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          allRoutes = List<Map<String, dynamic>>.from(data['routes']);
-          filteredRoutes = allRoutes;
+          routes = List<Map<String, dynamic>>.from(data['routes']);
           isLoading = false;
         });
       } else {
-        throw Exception('Failed to load routes');
+        setState(() {
+          isLoading = false;
+        });
+        DialogService.showError(
+          context,
+          message: 'Hatlar yüklenirken bir hata oluştu.',
+        );
       }
     } catch (e) {
-      setState(() => isLoading = false);
-      THelperFunctions.showAlert(
+      setState(() {
+        isLoading = false;
+      });
+      DialogService.showError(
         context,
-        'Hata',
-        'Rotalar yüklenirken bir hata oluştu.',
+        message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
       );
     }
   }
 
-  void filterRoutes(String query) {
-    setState(() {
-      searchQuery = query;
-      if (query.isEmpty) {
-        filteredRoutes = allRoutes;
-      } else {
-        filteredRoutes = allRoutes.where((route) =>
-          route['route_short_name']
-              .toString()
-              .toLowerCase()
-              .contains(query.toLowerCase())
-        ).toList();
-      }
-    });
-  }
-
   Future<void> saveSelectedRoutes() async {
-    if (selectedRoutes.isEmpty) {
-      THelperFunctions.showAlert(
+    if (selectedRouteIds.isEmpty) {
+      DialogService.showError(
         context,
-        'Uyarı',
-        'Lütfen en az bir rota seçiniz.',
+        message: 'Lütfen en az bir hat seçin.',
       );
       return;
     }
 
-    setState(() => isLoading = true);
+    await DialogService.showLoading(context, message: 'Hatlar kaydediliyor...');
 
     try {
-      for (var route in selectedRoutes) {
-        final response = await http.post(
-          Uri.parse('http://localhost:5000/api/user_routes/add_favorite_route'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'user_id': widget.userId,
-            'route_id': route['id'],
-          }),
-        );
+      final response = await http.post(
+        Uri.parse('http://localhost:5000/api/user/${widget.userId}/routes'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'route_ids': selectedRouteIds,
+        }),
+      );
 
-        if (response.statusCode != 200) {
-          throw Exception('Failed to save route');
-        }
-      }
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
 
-      // Show success animation
-      await showDialog(
-        context: context,
-        builder: (_) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TAnimationLoader.success(width: 100, height: 100),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Rotalarınız başarıyla kaydedildi!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.green),
-                ),
+      if (response.statusCode == 200) {
+        await DialogService.showSuccess(
+          context,
+          message: 'Hatlar başarıyla kaydedildi!',
+          onDismiss: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomeScreen(userId: widget.userId),
               ),
-            ],
-          ),
-        ),
-      );
-
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/home');
+            );
+          },
+        );
+      } else {
+        DialogService.showError(
+          context,
+          message: 'Hatlar kaydedilemedi. Lütfen tekrar deneyin.',
+        );
+      }
     } catch (e) {
-      setState(() => isLoading = false);
-      THelperFunctions.showAlert(
-        context,
-        'Hata',
-        'Rotalar kaydedilirken bir hata oluştu.',
-      );
+      if (mounted) {
+        Navigator.pop(context); // Remove loading dialog
+        DialogService.showError(
+          context,
+          message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
+        );
+      }
     }
+  }
+
+  void toggleRouteSelection(int routeId) {
+    setState(() {
+      if (selectedRouteIds.contains(routeId)) {
+        selectedRouteIds.remove(routeId);
+      } else {
+        selectedRouteIds.add(routeId);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
-        title: const Text('Rota Seçimi'),
-        centerTitle: true,
+        title: Text('Hat Seçimi'),
+        backgroundColor: Theme.of(context).primaryColor,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: searchController,
-              onChanged: filterRoutes,
-              decoration: InputDecoration(
-                hintText: 'Rota ara...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: Colors.grey[100],
-              ),
-            ),
-          ),
-          if (isLoading)
-            Center(child: TAnimationLoader.loading(width: 100, height: 100))
-          else
-            Expanded(
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : SafeArea(
               child: Column(
                 children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredRoutes.length,
-                      itemBuilder: (context, index) {
-                        final route = filteredRoutes[index];
-                        final isSelected = selectedRoutes.contains(route);
-
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              child: Text(route['route_short_name'].toString()),
-                            ),
-                            title: Text(route['route_short_name']),
-                            subtitle: Text(
-                              route['route_long_name'],
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: Icon(
-                              isSelected
-                                  ? Icons.check_circle
-                                  : Icons.check_circle_outline,
-                              color: isSelected ? Colors.green : Colors.grey,
-                            ),
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  selectedRoutes.remove(route);
-                                } else {
-                                  selectedRoutes.add(route);
-                                }
-                              });
-                            },
-                          ),
-                        );
-                      },
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'Lütfen kullanmak istediğiniz hatları seçin',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
+                  Expanded(
+                    child: routes.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Hiç hat bulunamadı',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: routes.length,
+                            padding: EdgeInsets.all(16),
+                            itemBuilder: (context, index) {
+                              final route = routes[index];
+                              final routeId = route['id'];
+                              final isSelected = selectedRouteIds.contains(routeId);
+
+                              return Card(
+                                margin: EdgeInsets.only(bottom: 12),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: isSelected 
+                                        ? Theme.of(context).primaryColor 
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: InkWell(
+                                  onTap: () => toggleRouteSelection(routeId),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 50,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              route['route_short_name'],
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 16),
+                                        Expanded(
+                                          child: Text(
+                                            route['route_long_name'],
+                                            style: TextStyle(fontSize: 16),
+                                          ),
+                                        ),
+                                        Checkbox(
+                                          value: isSelected,
+                                          onChanged: (_) => toggleRouteSelection(routeId),
+                                          activeColor: Theme.of(context).primaryColor,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(16),
                     child: SizedBox(
                       width: double.infinity,
+                      height: 50,
                       child: ElevatedButton(
                         onPressed: saveSelectedRoutes,
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                         child: Text(
-                          'Seçili Rotaları Kaydet (${selectedRoutes.length})',
+                          'Devam Et',
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
                     ),
@@ -230,14 +241,6 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
                 ],
               ),
             ),
-        ],
-      ),
     );
-  }
-
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
   }
 }
