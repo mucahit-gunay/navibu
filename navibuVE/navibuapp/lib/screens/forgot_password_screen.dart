@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'package:navibuapp/utils/device_utility.dart';
+import 'package:navibuapp/utils/helpers.dart';
+import 'package:navibuapp/utils/animation_loader.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -19,13 +22,35 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   String message = '';
 
   Future<void> sendResetCode() async {
+    TDeviceUtils.hideKeyboard(context);
+    
     if (emailController.text.isEmpty) {
-      setState(() {
-        message = "E-posta adresi boş bırakılamaz";
-      });
+      await showDialog(
+        context: context,
+        builder: (_) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TAnimationLoader.error(width: 100, height: 100),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'E-posta adresi boş bırakılamaz',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
       return;
     }
-    
+
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(emailController.text)) {
       setState(() {
         message = "Geçerli bir e-posta adresi giriniz";
@@ -40,7 +65,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:5000/auth/forgot-password'),
+        Uri.parse('http://localhost:5000/auth/forgot-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': emailController.text}),
       ).timeout(
@@ -61,6 +86,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           codeSent = true;
           message = 'Doğrulama kodu e-posta adresinize gönderildi.';
         });
+        
+        // Show success animation
+        await showDialog(
+          context: context,
+          builder: (_) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TAnimationLoader.success(width: 100, height: 100),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Doğrulama kodu e-posta adresinize gönderildi',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.green),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       } else {
         final data = jsonDecode(response.body);
         setState(() {
@@ -84,60 +135,72 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> resetPassword() async {
     if (codeController.text.isEmpty || newPasswordController.text.isEmpty) {
-      setState(() {
-        message = "Tüm alanları doldurunuz";
-      });
+      THelperFunctions.showAlert(
+        context,
+        'Uyarı',
+        'Lütfen tüm alanları doldurunuz.',
+      );
       return;
     }
-    
-    if (newPasswordController.text.length < 8) {
-      setState(() {
-        message = "Şifre en az 8 karakter olmalıdır";
-      });
-      return;
-    }
-    
-    setState(() {
-      isLoading = true;
-      message = '';
-    });
+
+    setState(() => isLoading = true);
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:5000/auth/reset-password'),
+        Uri.parse('http://localhost:5000/auth/reset-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': emailController.text,
-          'code': codeController.text,
+          'email': emailController.text.trim(),
+          'code': codeController.text.trim(),
           'new_password': newPasswordController.text,
         }),
       );
 
-      setState(() {
-        isLoading = false;
-      });
-
-      final data = jsonDecode(response.body);
-      
       if (response.statusCode == 200) {
-        setState(() {
-          message = 'Şifreniz başarıyla güncellendi';
-        });
-        // Wait a bit before navigating back
-        await Future.delayed(const Duration(seconds: 2));
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        if (!mounted) return;
+        
+        await showDialog(
+          context: context,
+          builder: (_) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TAnimationLoader.success(width: 100, height: 100),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Şifreniz başarıyla güncellendi!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.green),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/login');
       } else {
-        setState(() {
-          message = data['error'] ?? 'Bir hata oluştu';
-        });
+        final data = jsonDecode(response.body);
+        throw Exception(data['error'] ?? 'Şifre sıfırlama başarısız');
       }
     } catch (e) {
-      setState(() {
-        isLoading = false;
-        message = 'Bağlantı hatası: $e';
-      });
+      if (!mounted) return;
+      THelperFunctions.showAlert(
+        context,
+        'Hata',
+        e.toString(),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 

@@ -10,11 +10,11 @@
 		</data>
 		<key>flutter_assets/AssetManifest.bin</key>
 		<data>
-		gymY0R3N7WBoRtK1IFTqLGDs53U=
+		1NAT+P7Oeb2lAwAVc+wjdkK/Kow=
 		</data>
 		<key>flutter_assets/AssetManifest.json</key>
 		<data>
-		tXdmgvDkYgDSnUK51m+fjEILku8=
+		t/LKvyWz7442rWAPcxJcvxFvbbo=
 		</data>
 		<key>flutter_assets/FontManifest.json</key>
 		<data>
@@ -22,11 +22,23 @@
 		</data>
 		<key>flutter_assets/NOTICES.Z</key>
 		<data>
-		z2RO2Lu2MmCY4DEuKay1x8BGpAI=
+		GZEPBgCDbfCEaPZJwx/dv5o2OXM=
 		</data>
 		<key>flutter_assets/NativeAssetsManifest.json</key>
 		<data>
 		re4p7E8rPLLsN+wzaPN/+AVpXTY=
+		</data>
+		<key>flutter_assets/assets/animations/error.json</key>
+		<data>
+		w3Uk0FayNUUeefnvBrd4BnqkGXE=
+		</data>
+		<key>flutter_assets/assets/animations/loading.json</key>
+		<data>
+		k8Vdu9I24H/M7O6cHeUSpU4aeh8=
+		</data>
+		<key>flutter_assets/assets/animations/success.json</key>
+		<data>
+		FoyEXn2em4wCxKhrAIPjZEwr9Bg=
 		</data>
 		<key>flutter_assets/assets/navibu_logo.png</key>
 		<data>
@@ -42,7 +54,7 @@
 		</data>
 		<key>flutter_assets/kernel_blob.bin</key>
 		<data>
-		lshAoJrFWWr9A7slhqk6OnlqJ7k=
+		iEAjAY7j3qVRajH8BIwkBwWTX7w=
 		</data>
 		<key>flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf</key>
 		<data>
@@ -63,14 +75,14 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			mA2zsTQctE1O8vtUZwYQcOTnfMqZg73qgKOfukGa58U=
+			LJHgpo6GmNXS8/H9ZOGJEi3WsGXrJfCmPOG1y19puwU=
 			</data>
 		</dict>
 		<key>flutter_assets/AssetManifest.json</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			G2x4fv08qxlIOWtrHeRpvX9m8V+eLdvuhKHAskbZ2l8=
+			y9uaJ0z9Y/8kVxVfPrs+KLxPbZ+OoCB7SjbVe4Cyt7w=
 			</data>
 		</dict>
 		<key>flutter_assets/FontManifest.json</key>
@@ -84,7 +96,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			74BQPAtDt8J4EI7bf+EX7E6kDSXxENhP/+0n8EF4wps=
+			MXFW8Ke9Pqk7nmnJpjjRi48x2hdXfu5n4D9vDwwVQ+A=
 			</data>
 		</dict>
 		<key>flutter_assets/NativeAssetsManifest.json</key>
@@ -92,6 +104,27 @@
 			<key>hash2</key>
 			<data>
 			lUijHkoEgTXB2U+Rkyi/tirix7s8q5ZVfHlB2ql3dss=
+			</data>
+		</dict>
+		<key>flutter_assets/assets/animations/error.json</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			D21XL6LOfQL8K+Ge4tVZYopAsvdqtAA3cJnb3CgpdhI=
+			</data>
+		</dict>
+		<key>flutter_assets/assets/animations/loading.json</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			i/wfj32t5GmsHA5S26x/p9MUmASLzXpqkr086a51T/4=
+			</data>
+		</dict>
+		<key>flutter_assets/assets/animations/success.json</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			IxbuadnyC5QvTH/ANWiXNm1UIISYxm5nmOIYDzqC1ng=
 			</data>
 		</dict>
 		<key>flutter_assets/assets/navibu_logo.png</key>
@@ -119,7 +152,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			Y5gIUWfr0XBXtyhup6deL2LF2f5INDDc6rYfQvKk7dg=
+			KUQ+Cg2DnDPGd28UODigJUSOOR3yUKIiaIbwtn9LzgE=
 			</data>
 		</dict>
 		<key>flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf</key>

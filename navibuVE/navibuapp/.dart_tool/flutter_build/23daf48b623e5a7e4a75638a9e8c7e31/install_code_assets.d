@@ -1,0 +1,1 @@
+ /Users/mucahitgunay/Desktop/navibu/navibuVE/navibuapp/.dart_tool/flutter_build/23daf48b623e5a7e4a75638a9e8c7e31/native_assets.json: 

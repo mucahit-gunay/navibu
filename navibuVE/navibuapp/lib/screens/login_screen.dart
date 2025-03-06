@@ -1,13 +1,14 @@
-// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:navibuapp/widgets/navibu_logo.dart';
 import 'package:navibuapp/screens/signup_screen.dart';
 import 'package:navibuapp/screens/home_screen.dart';
+import 'package:navibuapp/screens/route_selection_screen.dart';
 import 'package:navibuapp/screens/forgot_password_screen.dart';
 import 'package:navibuapp/utils/device_utility.dart';
 import 'package:navibuapp/utils/animation_loader.dart';
+import 'package:navibuapp/utils/helpers.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -96,43 +97,63 @@ class _LoginScreenState extends State<LoginScreen> {
         final data = jsonDecode(response.body);
         final userId = data["user_id"];
 
-        // Show success animation
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => Dialog(
-            backgroundColor: Colors.transparent,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TAnimationLoader.success(width: 150, height: 150),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Giriş Başarılı!',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        // Check if user has selected routes
+        final routesResponse = await http.get(
+          Uri.parse('http://localhost:5000/auth/check-routes?user_id=$userId'),
         );
 
-        // Navigate after success animation
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(userId: userId),
-          ),
-        );
+
+        if (routesResponse.statusCode == 200) {
+          final routesData = jsonDecode(routesResponse.body);
+          final hasRoutes = routesData['has_routes'];
+
+          // Show success animation first
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => Dialog(
+              backgroundColor: Colors.transparent,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TAnimationLoader.success(width: 100, height: 100),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Giriş Başarılı!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.green),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+
+          if (!mounted) return;
+
+          // Navigate based on route selection status
+          if (hasRoutes) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomeScreen(userId: userId),
+              ),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RouteSelectionScreen(userId: userId),
+              ),
+            );
+          }
+        }
       } else {
         final data = jsonDecode(response.body);
         // Show error animation
@@ -197,9 +218,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get screen dimensions
-    final screenWidth = TDeviceUtils.getScreenWidth(context);
-    final screenHeight = TDeviceUtils.getScreenHeight(context);
     
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
