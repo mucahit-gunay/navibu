@@ -320,10 +320,10 @@
       "languageVersion": "3.7"
     }
   ],
-  "generated": "2025-03-06T23:24:25.495489Z",
+  "generated": "2025-03-11T13:13:40.248481Z",
   "generator": "pub",
   "generatorVersion": "3.7.0",
   "flutterRoot": "file:///opt/homebrew/Caskroom/flutter/3.29.0/flutter",
-  "flutterVersion": "3.29.0",
+  "flutterVersion": "3.29.1",
   "pubCache": "file:///Users/mucahitgunay/.pub-cache"
 }
