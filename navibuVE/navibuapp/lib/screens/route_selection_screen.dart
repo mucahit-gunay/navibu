@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../services/dialog_service.dart';
 import 'home_screen.dart';
 
@@ -16,51 +16,46 @@ class RouteSelectionScreen extends StatefulWidget {
 class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
   List<Map<String, dynamic>> routes = [];
   List<int> selectedRouteIds = [];
-  bool isLoading = true;
+  bool _isLoading = false;
+  bool _isSaving = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    fetchRoutes();
+    _fetchRoutes();
   }
 
-  Future<void> fetchRoutes() async {
+  Future<void> _fetchRoutes() async {
     setState(() {
-      isLoading = true;
+      _isLoading = true;
+      _error = null;
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5000/api/routes'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final response = await authService.get('/api/routes');
+      
+      if (response['success']) {
         setState(() {
-          routes = List<Map<String, dynamic>>.from(data['routes']);
-          isLoading = false;
+          routes = List<Map<String, dynamic>>.from(response['data']['routes']);
+          _isLoading = false;
         });
       } else {
         setState(() {
-          isLoading = false;
+          _error = response['message'] ?? 'Hatlar yüklenirken bir hata oluştu';
+          _isLoading = false;
         });
-        DialogService.showError(
-          context,
-          message: 'Hatlar yüklenirken bir hata oluştu.',
-        );
       }
     } catch (e) {
       setState(() {
-        isLoading = false;
+        _error = 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
+        _isLoading = false;
       });
-      DialogService.showError(
-        context,
-        message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
-      );
     }
   }
 
-  Future<void> saveSelectedRoutes() async {
+  Future<void> _saveSelectedRoutes() async {
     if (selectedRouteIds.isEmpty) {
       DialogService.showError(
         context,
@@ -69,51 +64,44 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
       return;
     }
 
-    await DialogService.showLoading(context, message: 'Hatlar kaydediliyor...');
+    setState(() {
+      _isSaving = true;
+      _error = null;
+    });
 
     try {
-      final response = await http.post(
-        Uri.parse('http://localhost:5000/api/user/${widget.userId}/routes'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'route_ids': selectedRouteIds,
-        }),
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final response = await authService.post(
+        '/api/user/${widget.userId}/routes',
+        data: {'route_ids': selectedRouteIds},
       );
 
-      // Close loading dialog
-      if (mounted) Navigator.pop(context);
-
-      if (response.statusCode == 200) {
+      if (response['success']) {
         await DialogService.showSuccess(
           context,
           message: 'Hatlar başarıyla kaydedildi!',
           onDismiss: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => HomeScreen(userId: widget.userId),
-              ),
+              MaterialPageRoute(builder: (context) => HomeScreen()),
             );
           },
         );
       } else {
-        DialogService.showError(
-          context,
-          message: 'Hatlar kaydedilemedi. Lütfen tekrar deneyin.',
-        );
+        setState(() {
+          _error = response['message'] ?? 'Hatlar kaydedilemedi. Lütfen tekrar deneyin.';
+          _isSaving = false;
+        });
       }
     } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Remove loading dialog
-        DialogService.showError(
-          context,
-          message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
-        );
-      }
+      setState(() {
+        _error = 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
+        _isSaving = false;
+      });
     }
   }
 
-  void toggleRouteSelection(int routeId) {
+  void _toggleRouteSelection(int routeId) {
     setState(() {
       if (selectedRouteIds.contains(routeId)) {
         selectedRouteIds.remove(routeId);
@@ -131,11 +119,23 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
         title: Text('Hat Seçimi'),
         backgroundColor: Theme.of(context).primaryColor,
       ),
-      body: isLoading
+      body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Column(
                 children: [
+                  if (_error != null)
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   Padding(
                     padding: EdgeInsets.all(16),
                     child: Text(
@@ -176,7 +176,7 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
                                   ),
                                 ),
                                 child: InkWell(
-                                  onTap: () => toggleRouteSelection(routeId),
+                                  onTap: () => _toggleRouteSelection(routeId),
                                   borderRadius: BorderRadius.circular(12),
                                   child: Padding(
                                     padding: EdgeInsets.all(16),
@@ -208,7 +208,7 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
                                         ),
                                         Checkbox(
                                           value: isSelected,
-                                          onChanged: (_) => toggleRouteSelection(routeId),
+                                          onChanged: (_) => _toggleRouteSelection(routeId),
                                           activeColor: Theme.of(context).primaryColor,
                                         ),
                                       ],
@@ -225,16 +225,25 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: saveSelectedRoutes,
+                        onPressed: _isSaving ? null : _saveSelectedRoutes,
                         style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: Text(
-                          'Devam Et',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                        child: _isSaving
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Text(
+                                'Devam Et',
+                                style: TextStyle(fontSize: 16),
+                              ),
                       ),
                     ),
                   ),

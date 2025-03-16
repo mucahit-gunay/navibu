@@ -1,9 +1,17 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class AuthService {
-  static const String baseUrl = 'http://127.0.0.1:5000';
+class AuthService extends ChangeNotifier {
+  // Platform-specific base URL
+  static String get baseUrl {
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:5000';  // Android emulator localhost
+    }
+    return 'http://127.0.0.1:5000';   // iOS simulator localhost
+  }
   static const String authPrefix = '/auth';
   
   // Store JWT token
@@ -27,6 +35,71 @@ class AuthService {
     };
   }
 
+  // Generic GET request
+  Future<Map<String, dynamic>> get(String endpoint) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: await _getHeaders(),
+      );
+
+      final data = json.decode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? data['error'],
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message': 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.',
+      };
+    } on FormatException {
+      return {
+        'success': false,
+        'message': 'Sunucudan geçersiz yanıt alındı.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Bir hata oluştu: $e',
+      };
+    }
+  }
+
+  // Generic POST request
+  Future<Map<String, dynamic>> post(String endpoint, {Map<String, dynamic>? data}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: await _getHeaders(),
+        body: data != null ? json.encode(data) : null,
+      );
+
+      final responseData = json.decode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': responseData,
+        'message': responseData['message'] ?? responseData['error'],
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message': 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.',
+      };
+    } on FormatException {
+      return {
+        'success': false,
+        'message': 'Sunucudan geçersiz yanıt alındı.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Bir hata oluştu: $e',
+      };
+    }
+  }
+
   // Login
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
@@ -42,15 +115,21 @@ class AuthService {
       final data = json.decode(response.body);
       if (response.statusCode == 200 && data['token'] != null) {
         await _saveToken(data['token']);
+        return data;
+      } else {
+        throw Exception(data['error'] ?? 'Giriş başarısız');
       }
-      return data;
+    } on SocketException catch (e) {
+      throw Exception('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin ve Flask sunucusunun çalıştığından emin olun.');
+    } on FormatException catch (e) {
+      throw Exception('Sunucudan geçersiz yanıt alındı.');
     } catch (e) {
-      throw Exception('Failed to login: $e');
+      throw Exception('Giriş yapılırken bir hata oluştu: $e');
     }
   }
 
   // Register
-  Future<Map<String, dynamic>> register(String email, String password, String username) async {
+  Future<Map<String, dynamic>> register(String email, String password) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl$authPrefix/register'),
@@ -58,13 +137,22 @@ class AuthService {
         body: json.encode({
           'email': email,
           'password': password,
-          'username': username,
         }),
       );
 
-      return json.decode(response.body);
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return data;
+      } else {
+        final data = json.decode(response.body);
+        throw Exception(data['error'] ?? 'Kayıt başarısız');
+      }
+    } on SocketException {
+      throw Exception('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.');
+    } on FormatException {
+      throw Exception('Sunucudan geçersiz yanıt alındı.');
     } catch (e) {
-      throw Exception('Failed to register: $e');
+      throw Exception('Kayıt olurken bir hata oluştu: $e');
     }
   }
 
@@ -149,14 +237,47 @@ class AuthService {
   Future<Map<String, dynamic>> requestPasswordReset(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl$authPrefix/reset-password-request'),
+        Uri.parse('$baseUrl$authPrefix/forgot-password'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email}),
       );
 
-      return json.decode(response.body);
+      final data = json.decode(response.body);
+      if (response.statusCode == 200) {
+        return data;
+      } else {
+        throw Exception(data['error'] ?? 'Şifre sıfırlama kodu gönderilemedi');
+      }
+    } on SocketException {
+      throw Exception('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.');
+    } on FormatException {
+      throw Exception('Sunucudan geçersiz yanıt alındı.');
     } catch (e) {
-      throw Exception('Failed to request password reset: $e');
+      throw Exception('Şifre sıfırlama kodu gönderilirken bir hata oluştu: $e');
+    }
+  }
+
+  // Resend verification code
+  Future<Map<String, dynamic>> resendVerificationCode(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl$authPrefix/resend-verification'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email}),
+      );
+
+      final data = json.decode(response.body);
+      if (response.statusCode == 200) {
+        return data;
+      } else {
+        throw Exception(data['error'] ?? 'Doğrulama kodu gönderilemedi');
+      }
+    } on SocketException {
+      throw Exception('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.');
+    } on FormatException {
+      throw Exception('Sunucudan geçersiz yanıt alındı.');
+    } catch (e) {
+      throw Exception('Doğrulama kodu gönderilirken bir hata oluştu: $e');
     }
   }
 

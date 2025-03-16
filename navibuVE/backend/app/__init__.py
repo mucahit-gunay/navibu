@@ -1,6 +1,6 @@
 from flask import Flask
 from .config import Config
-from .extensions import db, mail
+from .extensions import db, mail, jwt
 
 def create_app():
     app = Flask(__name__)
@@ -9,6 +9,7 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     mail.init_app(app)
+    jwt.init_app(app)
 
     # Import and register blueprints
     from .routes.auth import auth_bp

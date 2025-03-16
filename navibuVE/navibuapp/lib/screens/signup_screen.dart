@@ -1,7 +1,7 @@
 // lib/screens/signup_screen.dart
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../widgets/navibu_logo.dart';
 import '../screens/verification_screen.dart';
 import '../services/dialog_service.dart';
@@ -15,6 +15,9 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
+
+  bool _isLoading = false;
+  String? _error;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +51,18 @@ class _SignupScreenState extends State<SignupScreen> {
                     color: Theme.of(context).primaryColor,
                   ),
                 ),
-                SizedBox(height: 30),
+                SizedBox(height: 16),
+                // Error message if exists
+                if (_error != null)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                SizedBox(height: 16),
                 // Email field
                 TextField(
                   controller: emailController,
@@ -92,16 +106,25 @@ class _SignupScreenState extends State<SignupScreen> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: signUp,
+                    onPressed: _isLoading ? null : signUp,
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: Text(
-                      'Kayıt Ol',
-                      style: TextStyle(fontSize: 16),
-                    ),
+                    child: _isLoading
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            'Kayıt Ol',
+                            style: TextStyle(fontSize: 16),
+                          ),
                   ),
                 ),
                 SizedBox(height: 20),
@@ -127,68 +150,67 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> signUp() async {
     // Validate passwords match
     if (passwordController.text != confirmPasswordController.text) {
-      DialogService.showError(
-        context,
-        message: 'Şifreler eşleşmiyor!',
-      );
+      setState(() {
+        _error = 'Şifreler eşleşmiyor!';
+      });
       return;
     }
 
     // Validate fields are not empty
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-      DialogService.showError(
-        context,
-        message: 'Tüm alanları doldurunuz!',
-      );
+      setState(() {
+        _error = 'Tüm alanları doldurunuz!';
+      });
       return;
     }
 
-    // Show loading dialog
-    await DialogService.showLoading(context, message: 'Kayıt yapılıyor...');
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
     try {
-      final response = await http.post(
-        Uri.parse('http://localhost:5000/auth/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': emailController.text,
-          'password': passwordController.text,
-        }),
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final response = await authService.register(
+        emailController.text,
+        passwordController.text,
       );
 
-      // Close loading dialog
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
 
-      if (response.statusCode == 201) {
-        // Show success dialog
-        await DialogService.showSuccess(
-          context,
-          message: 'Kayıt Başarılı!\nLütfen e-postanızı doğrulayın.',
-          onDismiss: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VerificationScreen(
-                  email: emailController.text,
+        // Check if registration was successful (status code 201)
+        if (response.containsKey('user_id')) {
+          // Show success dialog and navigate to verification screen
+          await DialogService.showSuccess(
+            context,
+            message: response['message'] ?? 'Kayıt Başarılı!\nLütfen e-postanızı doğrulayın.',
+            onDismiss: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VerificationScreen(
+                    email: emailController.text,
+                  ),
                 ),
-              ),
-            );
-          },
-        );
-      } else {
-        final data = jsonDecode(response.body);
-        DialogService.showError(
-          context,
-          message: data['error'] ?? 'Kayıt işlemi başarısız!',
-        );
+              );
+            },
+          );
+        } else {
+          // Show error message
+          setState(() {
+            _error = response['error'] ?? 'Kayıt işlemi başarısız!';
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context); // Remove loading dialog
-        DialogService.showError(
-          context,
-          message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
-        );
+        setState(() {
+          _isLoading = false;
+          _error = 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
+        });
       }
     }
   }

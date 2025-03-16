@@ -1,193 +1,138 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../services/dialog_service.dart';
-import 'login_screen.dart';
-import 'route_selection_screen.dart';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
+import '../utils/animation_loader.dart';
 
 class HomeScreen extends StatefulWidget {
-  final int userId;
-
-  HomeScreen({required this.userId});
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Map<String, dynamic>> userRoutes = [];
-  bool isLoading = true;
+  bool _isLoading = true;
+  String? _error;
+  Map<String, dynamic>? _userData;
+  List<dynamic>? _routes;
 
   @override
   void initState() {
     super.initState();
-    fetchUserRoutes();
+    _loadHomeData();
   }
 
-  Future<void> fetchUserRoutes() async {
-    setState(() {
-      isLoading = true;
-    });
-
+  Future<void> _loadHomeData() async {
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5000/api/user/${widget.userId}/routes'),
-      );
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          userRoutes = List<Map<String, dynamic>>.from(data['routes']);
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          isLoading = false;
-        });
-        DialogService.showError(
-          context,
-          message: 'Hatlar yüklenirken bir hata oluştu.',
-        );
-      }
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final response = await authService.getHomeData();
+
+      setState(() {
+        _userData = response['user'];
+        _routes = response['routes'];
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
-        isLoading = false;
+        _error = e.toString();
+        _isLoading = false;
       });
-      DialogService.showError(
-        context,
-        message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
-      );
     }
   }
 
-  void logout() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-      (route) => false,
-    );
+  Future<void> _handleLogout() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.logout();
+      Navigator.of(context).pushReplacementNamed('/login');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Logout failed: ${e.toString()}')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Navibu'),
-        backgroundColor: Theme.of(context).primaryColor,
+        title: const Text('Home'),
         actions: [
           IconButton(
-            icon: Icon(Icons.edit),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => RouteSelectionScreen(userId: widget.userId),
-                ),
-              ).then((_) => fetchUserRoutes()); // Refresh after coming back
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: logout,
+            icon: const Icon(Icons.logout),
+            onPressed: _handleLogout,
           ),
         ],
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text(
-                      'Hatlarım',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: userRoutes.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Henüz hat seçmediniz',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                                SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => RouteSelectionScreen(
-                                          userId: widget.userId,
-                                        ),
-                                      ),
-                                    ).then((_) => fetchUserRoutes());
-                                  },
-                                  child: Text('Hat Seç'),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: userRoutes.length,
-                            padding: EdgeInsets.all(16),
-                            itemBuilder: (context, index) {
-                              final route = userRoutes[index];
-                              return Card(
-                                margin: EdgeInsets.only(bottom: 12),
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 50,
-                                        height: 50,
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).primaryColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            route['route_short_name'],
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(width: 16),
-                                      Expanded(
-                                        child: Text(
-                                          route['route_long_name'],
-                                          style: TextStyle(fontSize: 16),
-                                        ),
-                                      ),
-                                      Icon(Icons.directions_bus),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: fetchUserRoutes,
-        child: Icon(Icons.refresh),
+      body: RefreshIndicator(
+        onRefresh: _loadHomeData,
+        child: _buildBody(),
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return Center(child: TAnimationLoader.loading());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TAnimationLoader.error(),
+            const SizedBox(height: 16),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+            ElevatedButton(
+              onPressed: _loadHomeData,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_routes == null || _routes!.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TAnimationLoader.error(),
+            const Text('No routes available'),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _routes!.length,
+      padding: const EdgeInsets.all(16),
+      itemBuilder: (context, index) {
+        final route = _routes![index];
+        return Card(
+          elevation: 4,
+          margin: const EdgeInsets.only(bottom: 16),
+          child: ListTile(
+            title: Text(route['route_long_name'] ?? ''),
+            subtitle: Text(route['route_short_name'] ?? ''),
+            trailing: IconButton(
+              icon: Icon(
+                route['favorite'] ? Icons.favorite : Icons.favorite_border,
+                color: route['favorite'] ? Colors.red : null,
+              ),
+              onPressed: () {
+                // TODO: Implement favorite toggle
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 } 

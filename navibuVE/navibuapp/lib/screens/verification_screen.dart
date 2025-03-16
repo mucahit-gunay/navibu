@@ -1,7 +1,7 @@
 // lib/screens/verification_screen.dart
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../widgets/navibu_logo.dart';
 import '../screens/login_screen.dart';
 import '../services/dialog_service.dart';
@@ -17,6 +17,7 @@ class VerificationScreen extends StatefulWidget {
 
 class _VerificationScreenState extends State<VerificationScreen> {
   final TextEditingController codeController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -75,22 +76,31 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: verifyCode,
+                    onPressed: _isLoading ? null : verifyCode,
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: Text(
-                      'Doğrula',
-                      style: TextStyle(fontSize: 16),
-                    ),
+                    child: _isLoading
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            'Doğrula',
+                            style: TextStyle(fontSize: 16),
+                          ),
                   ),
                 ),
                 SizedBox(height: 20),
                 // Resend code
                 TextButton(
-                  onPressed: resendCode,
+                  onPressed: _isLoading ? null : resendCode,
                   child: Text('Kodu Tekrar Gönder'),
                 ),
               ],
@@ -110,22 +120,21 @@ class _VerificationScreenState extends State<VerificationScreen> {
       return;
     }
 
-    await DialogService.showLoading(context, message: 'Doğrulanıyor...');
+    setState(() => _isLoading = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('http://localhost:5000/auth/verify'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final response = await authService.post(
+        '/auth/verify',
+        data: {
           'email': widget.email,
           'code': codeController.text,
-        }),
+        },
       );
 
-      // Close loading dialog
-      if (mounted) Navigator.pop(context);
+      setState(() => _isLoading = false);
 
-      if (response.statusCode == 200) {
+      if (response['success']) {
         await DialogService.showSuccess(
           context,
           message: 'Hesabınız başarıyla doğrulandı!',
@@ -138,58 +147,45 @@ class _VerificationScreenState extends State<VerificationScreen> {
           },
         );
       } else {
-        final data = jsonDecode(response.body);
         DialogService.showError(
           context,
-          message: data['message'] ?? 'Doğrulama başarısız!',
+          message: response['message'] ?? 'Doğrulama başarısız!',
         );
       }
     } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Remove loading dialog
-        DialogService.showError(
-          context,
-          message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
-        );
-      }
+      setState(() => _isLoading = false);
+      DialogService.showError(
+        context,
+        message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
+      );
     }
   }
 
   Future<void> resendCode() async {
-    await DialogService.showLoading(context, message: 'Kod yeniden gönderiliyor...');
+    setState(() => _isLoading = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('http://localhost:5000/auth/resend-verification'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': widget.email,
-        }),
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final response = await authService.resendVerificationCode(widget.email);
+
+      setState(() => _isLoading = false);
+
+      DialogService.showSuccess(
+        context,
+        message: response['message'] ?? 'Doğrulama kodu yeniden gönderildi!',
       );
-
-      // Close loading dialog
-      if (mounted) Navigator.pop(context);
-
-      if (response.statusCode == 200) {
-        DialogService.showSuccess(
-          context,
-          message: 'Doğrulama kodu yeniden gönderildi!',
-        );
-      } else {
-        final data = jsonDecode(response.body);
-        DialogService.showError(
-          context,
-          message: data['message'] ?? 'Kod gönderilemedi!',
-        );
-      }
     } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Remove loading dialog
-        DialogService.showError(
-          context,
-          message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
-        );
-      }
+      setState(() => _isLoading = false);
+      DialogService.showError(
+        context,
+        message: e.toString().replaceAll('Exception: ', ''),
+      );
     }
+  }
+
+  @override
+  void dispose() {
+    codeController.dispose();
+    super.dispose();
   }
 }

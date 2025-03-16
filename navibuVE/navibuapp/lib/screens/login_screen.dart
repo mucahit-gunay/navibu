@@ -1,216 +1,191 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../widgets/navibu_logo.dart';
-import '../screens/signup_screen.dart';
-import '../screens/home_screen.dart';
-import '../screens/route_selection_screen.dart';
-import '../screens/forgot_password_screen.dart';
-import '../services/dialog_service.dart';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
+import '../utils/animation_loader.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  bool _showSuccess = false;
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loginUser() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _showSuccess = false;
+    });
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final response = await authService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _showSuccess = true;
+        });
+
+        // Check if user has routes
+        if (response['user'] != null) {
+          final userRoutes = await authService.checkUserRoutes(response['user']['id']);
+          
+          // Wait for success animation
+          await Future.delayed(const Duration(milliseconds: 1500));
+
+          if (mounted) {
+            if (userRoutes['has_routes'] == true) {
+              Navigator.of(context).pushReplacementNamed('/home');
+            } else {
+              // Navigate to route selection if user has no routes
+              Navigator.of(context).pushReplacementNamed(
+                '/route-selection',
+                arguments: {'userId': response['user']['id']},
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _showSuccess = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_showSuccess) {
+      return Scaffold(
+        body: Center(
+          child: TAnimationLoader.success(),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(height: 40),
-                // Logo
-                Center(child: NavibuLogo()),
-                SizedBox(height: 40),
-                // Title
-                Text(
-                  "Navibu'ya Hoş Geldiniz",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-                SizedBox(height: 30),
-                // Email field
-                TextField(
-                  controller: emailController,
-                  decoration: InputDecoration(
-                    labelText: "E-posta",
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
-                // Password field
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: "Şifre",
-                    prefixIcon: Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 24),
-                // Login button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: loginUser,
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      'Giriş Yap',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
-                // Forgot password button
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ForgotPasswordScreen(),
-                      ),
-                    );
-                  },
-                  child: Text('Şifremi Unuttum'),
-                ),
-                SizedBox(height: 16),
-                // Sign up link
-                Row(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 50),
+              Image.asset(
+                'assets/navibu_logo.png',
+                height: 150,
+              ),
+              const SizedBox(height: 50),
+              Form(
+                key: _formKey,
+                child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Hesabınız yok mu?'),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.email),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Lütfen email adresinizi girin';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Şifre',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      obscureText: _obscurePassword,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Lütfen şifrenizi girin';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _loginUser,
+                        child: _isLoading
+                            ? SizedBox(
+                                height: 30,
+                                width: 30,
+                                child: TAnimationLoader.loading(),
+                              )
+                            : const Text('Giriş Yap'),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     TextButton(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SignupScreen(),
-                          ),
-                        );
+                        Navigator.of(context).pushNamed('/signup');
                       },
-                      child: Text('Kayıt Ol'),
+                      child: const Text('Hesabınız yok mu? Kayıt olun'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pushNamed('/forgot-password');
+                      },
+                      child: const Text('Şifremi Unuttum'),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
-  }
-
-  Future<void> loginUser() async {
-    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-      DialogService.showError(
-        context,
-        message: 'E-posta ve şifre alanları boş bırakılamaz',
-      );
-      return;
-    }
-
-    await DialogService.showLoading(context, message: 'Giriş yapılıyor...');
-
-    try {
-      final response = await http.post(
-        Uri.parse("http://localhost:5000/auth/login"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "email": emailController.text,
-          "password": passwordController.text,
-        }),
-      );
-
-      // Close loading dialog
-      if (mounted) Navigator.pop(context);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final userId = data["user_id"];
-
-        // Check user routes
-        await checkUserRoutes(userId);
-      } else {
-        final data = jsonDecode(response.body);
-        DialogService.showError(
-          context,
-          message: data["error"] ?? "Giriş başarısız!",
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Remove loading dialog
-        DialogService.showError(
-          context,
-          message: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
-        );
-      }
-    }
-  }
-
-  Future<void> checkUserRoutes(int userId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5000/auth/check-routes?user_id=$userId'),
-      );
-
-      if (!mounted) return;
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final hasRoutes = data['has_routes'];
-
-        await DialogService.showSuccess(
-          context,
-          message: 'Giriş Başarılı!',
-          onDismiss: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => hasRoutes 
-                    ? HomeScreen(userId: userId)
-                    : RouteSelectionScreen(userId: userId),
-              ),
-            );
-          },
-        );
-      }
-    } catch (e) {
-      DialogService.showError(
-        context,
-        message: 'Rota kontrolü sırasında bir hata oluştu.',
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
   }
 }
