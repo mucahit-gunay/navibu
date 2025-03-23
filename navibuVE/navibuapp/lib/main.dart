@@ -42,7 +42,7 @@ class MyApp extends StatelessWidget {
             },
             routes: {
               '/login': (context) => const LoginScreen(),
-              '/home': (context) => const HomeScreen(),
+              '/home': (context) =>  HomeScreen(),
               '/signup': (context) =>  SignupScreen(),
               '/forgot-password': (context) =>  ForgotPasswordScreen(),
               '/verify': (context) =>  VerificationScreen(email: '',),

@@ -100,31 +100,33 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  int? _currentUserId;
+  
+  int? get currentUserId => _currentUserId;
+
   // Login
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl$authPrefix/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'email': email,
-          'password': password,
-        }),
-      );
-
-      final data = json.decode(response.body);
-      if (response.statusCode == 200 && data['token'] != null) {
+      final response = await post('/auth/login', data: {
+        'email': email,
+        'password': password,
+      });
+      
+      if (response['success'] == true && response['data'] != null) {
+        final data = response['data'] as Map<String, dynamic>;
+        // Store the token
         await _saveToken(data['token']);
-        return data;
-      } else {
-        throw Exception(data['error'] ?? 'Giriş başarısız');
+        // Store the user ID from the nested data.user object
+        _currentUserId = data['user']['id'];
       }
-    } on SocketException catch (e) {
-      throw Exception('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin ve Flask sunucusunun çalıştığından emin olun.');
-    } on FormatException catch (e) {
-      throw Exception('Sunucudan geçersiz yanıt alındı.');
+      
+      return response;
     } catch (e) {
-      throw Exception('Giriş yapılırken bir hata oluştu: $e');
+      print('Login error in AuthService: $e');
+      return {
+        'success': false,
+        'message': 'Bir hata oluştu. Lütfen tekrar deneyin.'
+      };
     }
   }
 
@@ -185,18 +187,55 @@ class AuthService extends ChangeNotifier {
   // Get user profile
   Future<Map<String, dynamic>> getHomeData() async {
     try {
+      final token = await getToken();
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'Oturum süresi dolmuş. Lütfen tekrar giriş yapın.',
+          'requireLogin': true
+        };
+      }
+
       final response = await http.get(
         Uri.parse('$baseUrl$authPrefix/home'),
-        headers: await _getHeaders(),  // This will include the JWT token
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
+        },
       );
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to get home data: ${response.body}');
+      if (response.statusCode == 422 || response.statusCode == 401) {
+        // Token is invalid or expired
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('jwt_token'); // Clear the invalid token
+        return {
+          'success': false,
+          'message': 'Oturum süresi dolmuş. Lütfen tekrar giriş yapın.',
+          'requireLogin': true
+        };
       }
+
+      final data = json.decode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? data['error']
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message': 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.'
+      };
+    } on FormatException {
+      return {
+        'success': false,
+        'message': 'Sunucudan geçersiz yanıt alındı.'
+      };
     } catch (e) {
-      throw Exception('Failed to get home data: $e');
+      return {
+        'success': false,
+        'message': 'Bir hata oluştu: $e'
+      };
     }
   }
 

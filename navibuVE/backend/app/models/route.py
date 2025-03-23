@@ -3,7 +3,7 @@ from ..extensions import db
 class Route(db.Model):
     __tablename__ = 'routes'
     
-    id = db.Column(db.Integer, primary_key=True)
+    route_id = db.Column(db.Integer, primary_key=True)
     route_short_name = db.Column(db.String(50), nullable=False, unique=True)
     route_long_name = db.Column(db.String(200), nullable=False)
     
@@ -19,7 +19,7 @@ class Route(db.Model):
     
     def to_dict(self):
         return {
-            'id': self.id,
+            'route_id': self.route_id,
             'route_short_name': self.route_short_name,
             'route_long_name': self.route_long_name
         }

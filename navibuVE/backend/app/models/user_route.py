@@ -5,7 +5,7 @@ class UserRoute(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    route_id = db.Column(db.Integer, db.ForeignKey('routes.id'), nullable=False)
+    route_id = db.Column(db.Integer, db.ForeignKey('routes.route_id'), nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     # Update relationships with back_populates and overlaps
@@ -25,5 +25,5 @@ class UserRoute(db.Model):
             'id': self.id,
             'user_id': self.user_id,
             'route_id': self.route_id,
-            'is_favorite': self.is_favorite
+            'created_at': self.created_at.isoformat() if self.created_at else None
         } 

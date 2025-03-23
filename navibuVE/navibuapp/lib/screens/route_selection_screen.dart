@@ -15,15 +15,46 @@ class RouteSelectionScreen extends StatefulWidget {
 
 class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
   List<Map<String, dynamic>> routes = [];
+  List<Map<String, dynamic>> filteredRoutes = [];
   List<int> selectedRouteIds = [];
   bool _isLoading = false;
   bool _isSaving = false;
   String? _error;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _fetchRoutes();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterRoutes(String query) {
+    print('Search query: $query'); // Debug print
+
+    setState(() {
+      if (query.isEmpty) {
+        filteredRoutes = List.from(routes);
+        print('Empty query, showing all ${routes.length} routes'); // Debug print
+      } else {
+        filteredRoutes = routes.where((route) {
+          final shortName = route['route_short_name']?.toString().toLowerCase() ?? '';
+          final longName = route['route_long_name']?.toString().toLowerCase() ?? '';
+          print('Checking route: $shortName - $longName'); // Debug print
+          
+          // Make the search more flexible
+          return shortName.contains(query.toLowerCase()) || 
+                 longName.contains(query.toLowerCase()) ||
+                 shortName.replaceAll(' ', '').contains(query.toLowerCase().replaceAll(' ', ''));
+        }).toList();
+        print('Found ${filteredRoutes.length} matches'); // Debug print
+      }
+    });
   }
 
   Future<void> _fetchRoutes() async {
@@ -36,9 +67,16 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
       final authService = Provider.of<AuthService>(context, listen: false);
       final response = await authService.get('/api/routes');
       
+      print('API Response: $response'); // Debug print
+      
       if (response['success']) {
+        final routesList = List<Map<String, dynamic>>.from(response['data']['routes']);
+        print('Loaded ${routesList.length} routes'); // Debug print
+        print('First route: ${routesList.isNotEmpty ? routesList.first : "No routes"}'); // Debug print
+        
         setState(() {
-          routes = List<Map<String, dynamic>>.from(response['data']['routes']);
+          routes = routesList;
+          filteredRoutes = List.from(routes);
           _isLoading = false;
         });
       } else {
@@ -48,6 +86,7 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
         });
       }
     } catch (e) {
+      print('Error fetching routes: $e'); // Debug print
       setState(() {
         _error = 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
         _isLoading = false;
@@ -138,29 +177,48 @@ class _RouteSelectionScreenState extends State<RouteSelectionScreen> {
                     ),
                   Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text(
-                      'Lütfen kullanmak istediğiniz hatları seçin',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      children: [
+                        Text(
+                          'Lütfen kullanmak istediğiniz hatları seçin',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 16),
+                        TextField(
+                          controller: _searchController,
+                          onChanged: _filterRoutes,
+                          decoration: InputDecoration(
+                            hintText: 'Hat numarası veya ismi ile ara...',
+                            prefixIcon: Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Expanded(
-                    child: routes.isEmpty
+                    child: filteredRoutes.isEmpty
                         ? Center(
                             child: Text(
-                              'Hiç hat bulunamadı',
+                              _searchController.text.isEmpty
+                                  ? 'Hiç hat bulunamadı'
+                                  : 'Arama sonucu bulunamadı',
                               style: TextStyle(fontSize: 16),
                             ),
                           )
                         : ListView.builder(
-                            itemCount: routes.length,
+                            itemCount: filteredRoutes.length,
                             padding: EdgeInsets.all(16),
                             itemBuilder: (context, index) {
-                              final route = routes[index];
-                              final routeId = route['id'];
+                              final route = filteredRoutes[index];
+                              final routeId = route['route_id'];
                               final isSelected = selectedRouteIds.contains(routeId);
 
                               return Card(

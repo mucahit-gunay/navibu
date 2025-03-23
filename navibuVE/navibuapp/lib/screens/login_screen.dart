@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:navibuapp/screens/home_screen.dart';
+import 'package:navibuapp/screens/route_selection_screen.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../utils/animation_loader.dart';
@@ -25,61 +27,96 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _loginUser() async {
-    if (!_formKey.currentState!.validate()) return;
+  void _login() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
 
-    setState(() {
-      _isLoading = true;
-      _showSuccess = false;
-    });
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
 
-    try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      final response = await authService.login(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
+      try {
+        final authService = Provider.of<AuthService>(context, listen: false);
+        final response = await authService.login(email, password);
+        
+        print('Login response: $response');
 
-      if (mounted) {
         setState(() {
           _isLoading = false;
-          _showSuccess = true;
         });
 
-        // Check if user has routes
-        if (response['user'] != null) {
-          final userRoutes = await authService.checkUserRoutes(response['user']['id']);
-          
-          // Wait for success animation
-          await Future.delayed(const Duration(milliseconds: 1500));
-
-          if (mounted) {
-            if (userRoutes['has_routes'] == true) {
-              Navigator.of(context).pushReplacementNamed('/home');
-            } else {
-              // Navigate to route selection if user has no routes
-              Navigator.of(context).pushReplacementNamed(
-                '/route-selection',
-                arguments: {'userId': response['user']['id']},
-              );
-            }
-          }
+        if (response['success'] == true && response['data'] != null) {
+          await _handleLoginSuccess(response);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
-      }
-    } catch (e) {
-      if (mounted) {
+      } catch (e) {
+        print('Login error: $e');
         setState(() {
           _isLoading = false;
-          _showSuccess = false;
         });
-
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text('Bir hata oluştu. Lütfen tekrar deneyin.'),
             backgroundColor: Colors.red,
           ),
         );
       }
+    }
+  }
+
+  Future<void> _handleLoginSuccess(Map<String, dynamic> response) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    
+    try {
+      // Extract user ID from the nested data.user object
+      final data = response['data'] as Map<String, dynamic>;
+      final user = data['user'] as Map<String, dynamic>;
+      final userId = user['id'];
+      
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Kullanıcı bilgileri alınamadı. Lütfen tekrar giriş yapın.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final routeCheckResponse = await authService.get('/api/user/check_route_selection/$userId');
+      
+      final hasSelectedRoutes = routeCheckResponse['success'] == true && 
+                              (routeCheckResponse['has_selected_routes'] ?? false);
+      
+      if (hasSelectedRoutes) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RouteSelectionScreen(userId: userId),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error in _handleLoginSuccess: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bir hata oluştu. Lütfen tekrar deneyin.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -156,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _loginUser,
+                        onPressed: _isLoading ? null : _login,
                         child: _isLoading
                             ? SizedBox(
                                 height: 30,

@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import '../utils/animation_loader.dart';
+import 'route_selection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
-
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isLoading = true;
-  String? _error;
-  Map<String, dynamic>? _userData;
-  List<dynamic>? _routes;
+  List<Map<String, dynamic>> userRoutes = [];
+  bool isLoading = true;
+  String? error;
 
   @override
   void initState() {
@@ -24,115 +21,98 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadHomeData() async {
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
       final authService = Provider.of<AuthService>(context, listen: false);
-      final response = await authService.getHomeData();
-
-      setState(() {
-        _userData = response['user'];
-        _routes = response['routes'];
-        _isLoading = false;
-      });
+      final response = await authService.get('/auth/home');
+      
+      if (response['success']) {
+        setState(() {
+          userRoutes = List<Map<String, dynamic>>.from(response['routes']);
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          error = response['message'];
+          isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
-        _error = e.toString();
-        _isLoading = false;
+        error = 'Veriler yüklenirken bir hata oluştu';
+        isLoading = false;
       });
-    }
-  }
-
-  Future<void> _handleLogout() async {
-    try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      await authService.logout();
-      Navigator.of(context).pushReplacementNamed('/login');
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Logout failed: ${e.toString()}')),
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
-        title: const Text('Home'),
+        title: Text('Navibu'),
+        backgroundColor: Theme.of(context).primaryColor,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _handleLogout,
+            icon: Icon(Icons.edit),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RouteSelectionScreen(
+                    userId: Provider.of<AuthService>(context, listen: false).currentUserId!,
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadHomeData,
-        child: _buildBody(),
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isLoading) {
-      return Center(child: TAnimationLoader.loading());
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TAnimationLoader.error(),
-            const SizedBox(height: 16),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
-            ElevatedButton(
-              onPressed: _loadHomeData,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_routes == null || _routes!.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TAnimationLoader.error(),
-            const Text('No routes available'),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: _routes!.length,
-      padding: const EdgeInsets.all(16),
-      itemBuilder: (context, index) {
-        final route = _routes![index];
-        return Card(
-          elevation: 4,
-          margin: const EdgeInsets.only(bottom: 16),
-          child: ListTile(
-            title: Text(route['route_long_name'] ?? ''),
-            subtitle: Text(route['route_short_name'] ?? ''),
-            trailing: IconButton(
-              icon: Icon(
-                route['favorite'] ? Icons.favorite : Icons.favorite_border,
-                color: route['favorite'] ? Colors.red : null,
-              ),
-              onPressed: () {
-                // TODO: Implement favorite toggle
-              },
-            ),
-          ),
-        );
-      },
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : error != null
+              ? Center(child: Text(error!))
+              : SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hatlarım',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          itemCount: userRoutes.length,
+                          itemBuilder: (context, index) {
+                            final route = userRoutes[index];
+                            return Card(
+                              margin: EdgeInsets.only(bottom: 12),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Theme.of(context).primaryColor,
+                                  child: Text(
+                                    route['route_short_name'],
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                title: Text(route['route_long_name']),
+                                trailing: Icon(Icons.arrow_forward_ios),
+                                onTap: () {
+                                  // TODO: Navigate to route detail screen
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
     );
   }
 } 
